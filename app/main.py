@@ -8,7 +8,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from webhooks import router as whatsapp_router
+from app.api.webhooks import router as whatsapp_router
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
