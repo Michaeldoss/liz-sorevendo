@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Liz Bot</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f3;color:#1a1a1a;display:flex;min-height:100vh}
+.sidebar{width:220px;background:#1a1a1a;color:#fff;padding:1.25rem 0;display:flex;flex-direction:column;flex-shrink:0;position:fixed;height:100vh;overflow-y:auto}
+.sidebar-logo{padding:0 1.25rem 1.25rem;border-bottom:1px solid #333;margin-bottom:0.75rem}
+.sidebar-logo h2{font-size:15px;font-weight:600}
+.sidebar-logo span{font-size:11px;color:#888;display:block;margin-top:2px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 1.25rem;font-size:13px;color:#aaa;cursor:pointer;border-left:3px solid transparent;transition:all 0.15s}
+.nav-item:hover{background:#2a2a2a;color:#fff}
+.nav-item.active{background:#2a2a2a;color:#fff;border-left-color:#4ade80}
+.nav-icon{font-size:16px;width:18px;text-align:center}
+.nav-section{font-size:10px;color:#555;padding:1rem 1.25rem 0.4rem;text-transform:uppercase;letter-spacing:0.08em}
+.main{margin-left:220px;flex:1;padding:1.75rem;max-width:calc(100vw - 220px)}
+.page{display:none}.page.active{display:block}
+.page-header{margin-bottom:1.5rem}
+.page-header h1{font-size:20px;font-weight:600}
+.page-header p{font-size:13px;color:#888;margin-top:3px}
+.card{background:#fff;border-radius:12px;border:1px solid #e8e8e8;padding:1.25rem;margin-bottom:1rem}
+.card-title{font-size:14px;font-weight:600;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}
+label{display:block;font-size:12px;font-weight:500;color:#555;margin-bottom:5px;margin-top:14px}
+label:first-child{margin-top:0}
+input[type=text],input[type=number],input[type=url],select,textarea{width:100%;padding:8px 12px;border-radius:8px;border:1px solid #ddd;font-size:13px;color:#1a1a1a;background:#fff;font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,0.1)}
+textarea{min-height:90px;resize:vertical;line-height:1.5}
+textarea.sm{min-height:60px}
+textarea.lg{min-height:150px}
+textarea.conv{min-height:160px;font-size:12px;font-family:monospace}
+.btn{padding:8px 16px;border-radius:8px;border:1px solid #ddd;background:#fff;font-size:13px;cursor:pointer;color:#555;font-family:inherit;transition:all 0.15s}
+.btn:hover{background:#f0f0f0}
+.btn-primary{background:#1a7f3c;color:#fff;border-color:#1a7f3c}
+.btn-primary:hover{background:#15692f}
+.btn-danger{background:#fce8e6;color:#c5221f;border-color:#f5c6c5}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-row{display:flex;gap:8px;margin-top:1rem;justify-content:flex-end}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
+@media(max-width:800px){.grid2,.grid3{grid-template-columns:1fr}}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.5rem}
+.metric{background:#fff;border-radius:10px;padding:14px 16px;border:1px solid #e8e8e8}
+.metric-label{font-size:12px;color:#888;margin-bottom:6px}
+.metric-value{font-size:26px;font-weight:600}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;padding:8px 12px;font-size:11px;color:#aaa;font-weight:600;text-transform:uppercase;border-bottom:1px solid #f0f0f0;background:#fafafa}
+.tbl td{padding:10px 12px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#fafafa}
+.badge{font-size:11px;padding:2px 8px;border-radius:20px;display:inline-block}
+.b-green{background:#e6f4ea;color:#1a7f3c}.b-yellow{background:#fff8e1;color:#b07d00}
+.b-blue{background:#e8f0fe;color:#1a56c4}.b-red{background:#fce8e6;color:#c5221f}.b-gray{background:#f0f0f0;color:#666}
+.toggle{position:relative;width:40px;height:22px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:#ddd;border-radius:22px;cursor:pointer;transition:0.2s}
+.toggle-slider:before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:0.2s}
+.toggle input:checked+.toggle-slider{background:#1a7f3c}
+.toggle input:checked+.toggle-slider:before{transform:translateX(18px)}
+.alert{padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:1rem}
+.alert-success{background:#e6f4ea;color:#1a7f3c;border:1px solid #b7dfbe}
+.alert-err{background:#fce8e6;color:#c5221f;border:1px solid #f5c6c5}
+.hint{font-size:11px;color:#aaa;margin-top:3px}
+/* Produto card */
+.prod-card{background:#fff;border:1px solid #e8e8e8;border-radius:12px;margin-bottom:0.75rem;overflow:hidden}
+.prod-card-header{padding:12px 16px;background:#fafafa;border-bottom:1px solid #f0f0f0;display:flex;align-items:center;justify-content:space-between}
+.prod-card-body{padding:12px 16px;font-size:13px;color:#555;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.prod-stat{font-size:12px;color:#888}
+.prod-stat strong{color:#1a1a1a}
+/* Formulário produto — destaque */
+.form-section{background:#f9f9f7;border-radius:10px;padding:1rem;margin-bottom:1rem;border:1px solid #efefed}
+.form-section-title{font-size:12px;font-weight:600;color:#555;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.75rem}
+/* Modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:flex-start;justify-content:center;padding:2rem 1rem;overflow-y:auto}
+.modal{background:#fff;border-radius:16px;padding:1.75rem;width:700px;max-width:100%;margin:auto}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:1.25rem}
+.modal-actions{display:flex;gap:8px;margin-top:1.5rem;justify-content:flex-end}
+/* Setup */
+.setup-wrap{max-width:440px;margin:4rem auto;background:#fff;border-radius:14px;padding:2rem;border:1px solid #e8e8e8}
+.setup-wrap h2{font-size:18px;font-weight:600;margin-bottom:6px}
+.setup-wrap p{font-size:13px;color:#666;margin-bottom:1.25rem}
+/* Example card */
+.ex-card{background:#f9f9f7;border:1px solid #e8e8e8;border-radius:10px;padding:1rem;margin-bottom:0.75rem}
+.ex-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <h2>Liz Admin</h2>
+    <span id="sidebar-company">So Revendo</span>
+  </div>
+  <div class="nav-section">Visão geral</div>
+  <div class="nav-item active" data-page="dashboard" onclick="nav(this)"><span class="nav-icon">📊</span> Dashboard</div>
+  <div class="nav-section">Configurar bot</div>
+  <div class="nav-item" data-page="identidade" onclick="nav(this)"><span class="nav-icon">🤖</span> Identidade</div>
+  <div class="nav-item" data-page="produtos" onclick="nav(this)"><span class="nav-icon">📦</span> Produtos</div>
+  <div class="nav-item" data-page="exemplos" onclick="nav(this)"><span class="nav-icon">💬</span> Conversas de Exemplo</div>
+  <div class="nav-item" data-page="followup" onclick="nav(this)"><span class="nav-icon">⏰</span> Follow-up</div>
+  <div class="nav-item" data-page="config" onclick="nav(this)"><span class="nav-icon">⚙️</span> Configurações</div>
+  <div class="nav-section">Leads</div>
+  <div class="nav-item" data-page="leads" onclick="nav(this)"><span class="nav-icon">👥</span> Clientes</div>
+  <div class="nav-item" data-page="pedidos" onclick="nav(this)"><span class="nav-icon">📋</span> Pedidos</div>
+</div>
+
+<div class="main">
+
+<!-- SETUP -->
+<div id="setup-page" style="display:none">
+  <div class="setup-wrap">
+    <h2>Conectar ao Supabase</h2>
+    <p>Cole as credenciais do projeto Supabase da Liz para acessar o painel.</p>
+    <label>URL do Supabase</label>
+    <input type="text" id="setup-url" placeholder="https://xxxx.supabase.co"/>
+    <label>Chave anon (API Key)</label>
+    <input type="text" id="setup-key" placeholder="eyJhbGci..."/>
+    <div style="margin-top:1rem">
+      <button class="btn btn-primary" style="width:100%;padding:10px" onclick="setupConnect()">Conectar</button>
+    </div>
+    <p id="setup-err" style="color:#c5221f;font-size:12px;margin-top:8px;display:none"></p>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page active" id="page-dashboard">
+  <div class="page-header"><h1>Dashboard</h1><p>Visão geral em tempo real</p></div>
+  <div class="metrics">
+    <div class="metric"><div class="metric-label">Total de leads</div><div class="metric-value" id="d-total">—</div></div>
+    <div class="metric"><div class="metric-label">Em orçamento</div><div class="metric-value" id="d-orc" style="color:#b07d00">—</div></div>
+    <div class="metric"><div class="metric-label">Artes recebidas</div><div class="metric-value" id="d-arte" style="color:#1a56c4">—</div></div>
+    <div class="metric"><div class="metric-label">Pedidos ativos</div><div class="metric-value" id="d-ped" style="color:#1a7f3c">—</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Últimos clientes <button class="btn btn-sm" onclick="loadDashboard()">↻ Atualizar</button></div>
+    <table class="tbl"><thead><tr><th>Cliente</th><th>Telefone</th><th>Origem</th><th>Status</th><th>Data</th></tr></thead>
+    <tbody id="dash-customers"></tbody></table>
+  </div>
+</div>
+
+<!-- IDENTIDADE -->
+<div class="page" id="page-identidade">
+  <div class="page-header"><h1>Identidade do Bot</h1><p>Nome, empresa, tom e comportamento</p></div>
+  <div id="alert-identidade"></div>
+  <div class="card">
+    <div class="grid2">
+      <div>
+        <label>Nome do bot</label><input type="text" id="i-name" placeholder="Liz"/>
+        <label>Nome da empresa</label><input type="text" id="i-company" placeholder="So Revendo"/>
+        <label>Função do bot</label><input type="text" id="i-role" placeholder="especialista em vendas de patch 3D"/>
+      </div>
+      <div>
+        <label>Tom de comunicação</label>
+        <select id="i-tone">
+          <option value="Profissional e simpática. Natural, sem ser robótica nem genérica.">Profissional e simpático</option>
+          <option value="Descontraído e próximo, quase como amigo.">Descontraído e próximo</option>
+          <option value="Formal e objetivo. Direto ao ponto, sem rodeios.">Formal e objetivo</option>
+          <option value="Animado e entusiasmado, com energia positiva.">Animado e entusiasmado</option>
+        </select>
+        <label>Mensagem de abertura</label>
+        <input type="text" id="i-opening" placeholder="Você já tem a arte ou quer que a gente desenvolva?"/>
+      </div>
+    </div>
+    <label>Regras adicionais de comportamento</label>
+    <textarea id="i-rules" class="sm" placeholder="Ex: Nunca mencionar concorrentes. Sempre reforçar o prazo de entrega..."></textarea>
+    <div class="btn-row"><button class="btn btn-primary" onclick="saveIdentidade()">Salvar identidade</button></div>
+  </div>
+</div>
+
+<!-- PRODUTOS -->
+<div class="page" id="page-produtos">
+  <div class="page-header"><h1>Produtos e Serviços</h1><p>Cadastre tudo que o bot pode vender com detalhes completos</p></div>
+  <div id="alert-produtos"></div>
+  <div id="produtos-list"></div>
+  <button class="btn btn-primary" onclick="openProductForm(null)">+ Cadastrar novo produto</button>
+</div>
+
+<!-- EXEMPLOS -->
+<div class="page" id="page-exemplos">
+  <div class="page-header"><h1>Conversas de Exemplo</h1><p>Cole conversas reais para a Liz aprender o estilo</p></div>
+  <div id="alert-exemplos"></div>
+  <div class="card" style="background:#f0f9f4;border-color:#b7dfbe;margin-bottom:1rem">
+    <p style="font-size:13px;color:#1a7f3c">💡 Cole conversas reais da empresa. Quanto mais exemplos, mais a Liz soa como um humano do time. Inclua objeções, negociações, diferentes tipos de clientes.</p>
+  </div>
+  <div id="exemplos-list"></div>
+  <button class="btn btn-primary" onclick="openExemploForm(null)">+ Adicionar conversa</button>
+</div>
+
+<!-- FOLLOW-UP -->
+<div class="page" id="page-followup">
+  <div class="page-header"><h1>Follow-up</h1><p>Sequência automática gerada por IA com base na conversa</p></div>
+  <div id="alert-followup"></div>
+  <div class="card" style="background:#e8f0fe;border-color:#b5d4f4;margin-bottom:1rem">
+    <p style="font-size:13px;color:#1a56c4">🤖 As mensagens de follow-up são geradas pela IA com base no histórico real da conversa — não são textos fixos. Aqui você configura apenas o timing e pode adicionar instruções extras de tom.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Sequência ativa</div>
+    <table class="tbl">
+      <thead><tr><th>#</th><th>Quando dispara</th><th>Tom</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>30 min sem resposta</td><td>Sutil — retoma com pergunta direta</td><td><span class="badge b-green">Ativo</span></td></tr>
+        <tr><td>2</td><td>2h30 após 1ª msg</td><td>Proativo — reforça valor do produto</td><td><span class="badge b-green">Ativo</span></td></tr>
+        <tr><td>3</td><td>6h30 após 1ª msg</td><td>Urgência suave — prazo/disponibilidade</td><td><span class="badge b-green">Ativo</span></td></tr>
+        <tr><td>4</td><td>24h após 1ª msg</td><td>Última tentativa — porta aberta</td><td><span class="badge b-green">Ativo</span></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:12px;color:#888;margin-top:10px">Horário de envio: 08:00–12:00 e 13:30–18:00. Fora deste horário o bot aguarda automaticamente o próximo slot.</p>
+  </div>
+  <div class="card">
+    <div class="card-title">Instrução extra de tom (opcional)</div>
+    <textarea id="fu-extra" class="sm" placeholder="Ex: Sempre mencionar o prazo de 3-4 dias. Nunca ser insistente demais."></textarea>
+    <div class="hint">Isso é adicionado ao contexto da IA ao gerar os follow-ups.</div>
+    <div class="btn-row"><button class="btn btn-primary" onclick="saveFollowupExtra()">Salvar</button></div>
+  </div>
+</div>
+
+<!-- CONFIG -->
+<div class="page" id="page-config">
+  <div class="page-header"><h1>Configurações</h1><p>PIX, grupo de notificação e preferências</p></div>
+  <div id="alert-config"></div>
+  <div class="card">
+    <div class="card-title">Pagamento</div>
+    <label>Chave PIX</label><input type="text" id="c-pix" placeholder="contato@empresa.com.br"/>
+    <label>Condição de pagamento</label><input type="text" id="c-payment" placeholder="50% entrada + 50% na retirada"/>
+  </div>
+  <div class="card">
+    <div class="card-title">Notificações internas</div>
+    <label>Número do grupo WhatsApp (com +55)</label>
+    <input type="text" id="c-group" placeholder="+5547992142950"/>
+    <div class="hint">Número que recebe alertas de lead quente</div>
+    <label style="display:flex;align-items:center;gap:10px;margin-top:14px">
+      <label class="toggle"><input type="checkbox" id="c-followup"><span class="toggle-slider"></span></label>
+      Follow-up automático ativado
+    </label>
+  </div>
+  <div class="btn-row"><button class="btn btn-primary" onclick="saveConfigPage()">Salvar configurações</button></div>
+</div>
+
+<!-- LEADS -->
+<div class="page" id="page-leads">
+  <div class="page-header"><h1>Clientes</h1></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="tbl"><thead><tr><th>Nome</th><th>Telefone</th><th>Origem</th><th>Status</th><th>Obs</th><th>Desde</th><th></th></tr></thead>
+    <tbody id="leads-list"></tbody></table>
+  </div>
+</div>
+
+<!-- PEDIDOS -->
+<div class="page" id="page-pedidos">
+  <div class="page-header"><h1>Pedidos e Orçamentos</h1></div>
+  <div class="card" style="padding:0;overflow:hidden">
+    <table class="tbl"><thead><tr><th>Telefone</th><th>Produto</th><th>Qtd</th><th>Tamanho</th><th>Arte</th><th>Valor</th><th>Status</th><th></th></tr></thead>
+    <tbody id="orders-list"></tbody></table>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<!-- MODAL PRODUTO -->
+<div class="modal-bg" id="prod-modal-bg">
+  <div class="modal" id="prod-modal">
+    <h3 id="prod-modal-title">Cadastrar produto</h3>
+
+    <div class="form-section">
+      <div class="form-section-title">📋 Identificação</div>
+      <div class="grid3">
+        <div><label>Nome do produto *</label><input type="text" id="p-name" placeholder="Patch 3D UV"/></div>
+        <div><label>Código / SKU</label><input type="text" id="p-sku" placeholder="PATCH-3D-001"/></div>
+        <div><label>Categoria</label><input type="text" id="p-cat" placeholder="Comunicação Visual"/></div>
+      </div>
+      <div class="grid2">
+        <div><label>Marca / Fabricante</label><input type="text" id="p-brand" placeholder="So Revendo"/></div>
+        <div>
+          <label>Status</label>
+          <select id="p-active"><option value="true">✅ Ativo — bot pode vender</option><option value="false">⏸ Inativo — oculto do bot</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">📝 Descrição</div>
+      <label>Descrição curta (bot usa para apresentar o produto)</label>
+      <textarea id="p-desc" class="sm" placeholder="Patch personalizado com relevo em tinta UV para uniformes, bonés e peças têxteis."></textarea>
+      <label>Informações técnicas detalhadas</label>
+      <textarea id="p-tech" placeholder="Material, processo de fabricação, especificações técnicas, compatibilidade..."></textarea>
+      <label>Limitações e restrições</label>
+      <textarea id="p-lim" class="sm" placeholder="O que NÃO pode ser feito. Ex: largura máxima 30cm, materiais que não suportam calor..."></textarea>
+      <label>Perguntas frequentes (FAQ)</label>
+      <textarea id="p-faq" placeholder="P: Quanto tempo dura? R: Suporta várias lavagens normais.&#10;P: Pode lavar a seco? R: Não recomendado."></textarea>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">💰 Preço e Estoque</div>
+      <div class="grid3">
+        <div>
+          <label>Preço base</label>
+          <input type="number" id="p-price" placeholder="1300.00" step="0.01"/>
+        </div>
+        <div>
+          <label>Unidade de medida</label>
+          <select id="p-unit">
+            <option value="unidade">Unidade</option>
+            <option value="m²">m² (metro quadrado)</option>
+            <option value="litro">Litro</option>
+            <option value="kg">Kg</option>
+            <option value="rolo">Rolo</option>
+            <option value="peça">Peça</option>
+            <option value="kit">Kit</option>
+          </select>
+        </div>
+        <div>
+          <label>Quantidade mínima</label>
+          <input type="number" id="p-minqty" placeholder="10" min="1"/>
+        </div>
+      </div>
+      <div class="grid2">
+        <div>
+          <label>Variações disponíveis</label>
+          <input type="text" id="p-var" placeholder="Cores: branco, preto | Relevo: baixo, médio, alto"/>
+        </div>
+        <div>
+          <label>Disponibilidade / Estoque</label>
+          <input type="text" id="p-stock" placeholder="Pronto para produção | Sob encomenda"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">🚚 Produção e Entrega</div>
+      <div class="grid2">
+        <div>
+          <label>Prazo de produção</label>
+          <input type="text" id="p-days" placeholder="3 a 4 dias úteis após aprovação da arte"/>
+        </div>
+        <div>
+          <label>Informações de frete / envio</label>
+          <input type="text" id="p-ship" placeholder="Expresso São Miguel, Disktenha, Melhor Envio"/>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="form-section-title">🎯 Regras de Venda</div>
+      <label>Como o bot deve vender este produto (instruções específicas)</label>
+      <textarea id="p-srules" class="sm" placeholder="Ex: Sempre pedir a arte antes de orçar. Perguntar onde vai aplicar (uniforme, boné, etc). Mínimo de 10 peças."></textarea>
+      <label>Palavras-chave que o cliente usa para pedir este produto</label>
+      <input type="text" id="p-keys" placeholder="patch, brasão, escudo, time, uniforme, relevo, termocolante"/>
+      <div class="hint">O bot usa isso para identificar quando o cliente está perguntando sobre este produto</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" onclick="closeProductModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Salvar produto</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CLIENTE -->
+<div class="modal-bg" id="cust-modal-bg">
+  <div class="modal" style="width:400px">
+    <h3 id="cust-modal-title">Editar cliente</h3>
+    <label>Status</label>
+    <select id="m-status">
+      <option value="novo">Novo</option><option value="orcamento">Orçamento</option>
+      <option value="pedido">Pedido</option><option value="concluido">Concluído</option><option value="perdido">Perdido</option>
+    </select>
+    <label>Observação</label>
+    <textarea id="m-notes" class="sm"></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeCustModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveCustomer()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PEDIDO -->
+<div class="modal-bg" id="ord-modal-bg">
+  <div class="modal" style="width:400px">
+    <h3>Editar pedido</h3>
+    <label>Status</label>
+    <select id="om-status">
+      <option value="orcamento">Orçamento</option><option value="confirmado">Confirmado</option>
+      <option value="producao">Em produção</option><option value="pronto">Pronto</option><option value="entregue">Entregue</option>
+    </select>
+    <label>Arte</label>
+    <select id="om-arte"><option value="aguardando">Aguardando</option><option value="recebida">Recebida</option><option value="aprovada">Aprovada</option></select>
+    <label>Obs</label><textarea id="om-obs" class="sm"></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeOrdModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveOrder()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EXEMPLO -->
+<div class="modal-bg" id="ex-modal-bg">
+  <div class="modal">
+    <h3 id="ex-modal-title">Conversa de exemplo</h3>
+    <label>Título (ex: Cliente confecção — 50 peças)</label>
+    <input type="text" id="ex-title"/>
+    <label>Contexto (tipo de cliente, situação)</label>
+    <input type="text" id="ex-ctx" placeholder="Dono de confecção, pedido grande, tinha arte pronta"/>
+    <label>Conversa completa — coloque "Cliente:" e "Liz:" em cada turno</label>
+    <textarea class="conv" id="ex-conv" placeholder="Cliente: Oi, quero fazer patch 3D para meu time&#10;Liz: Você já tem a arte do patch ou quer que a gente desenvolva?&#10;Cliente: Tenho a arte em CDR&#10;Liz: Perfeito! Quantas peças e qual tamanho aproximado?"></textarea>
+    <div class="hint">Cole a conversa real exatamente como aconteceu. Quanto mais completa, melhor.</div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeExModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveExemplo()">Salvar conversa</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let SB_URL=localStorage.getItem('liz_sb_url')||'';
+let SB_KEY=localStorage.getItem('liz_sb_key')||'';
+let editProdId=null,editCustPhone=null,editOrdId=null,editExId=null;
+
+// ── API ──────────────────────────────────────────────────────────────────────
+async function sb(table,params=''){
+  const r=await fetch(`${SB_URL}/rest/v1/${table}?${params}`,{headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json','Prefer':'count=exact'}});
+  if(!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+  return r.json();
+}
+async function sbPost(table,data){
+  const r=await fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify(data)});
+  if(!r.ok){const t=await r.text();throw new Error(`${r.status}: ${t}`);}
+  return r.json();
+}
+async function sbPatch(table,match,data){
+  const r=await fetch(`${SB_URL}/rest/v1/${table}?${match}`,{method:'PATCH',headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(data)});
+  if(!r.ok) throw new Error(`${r.status}`);
+}
+async function sbDel(table,match){
+  const r=await fetch(`${SB_URL}/rest/v1/${table}?${match}`,{method:'DELETE',headers:{'apikey':SB_KEY,'Authorization':`Bearer ${SB_KEY}`}});
+  if(!r.ok) throw new Error(`${r.status}`);
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmtDate(d){if(!d)return'—';return new Date(d).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'});}
+function fmtVal(v){if(!v||v==0)return'—';return'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2});}
+function orig(s){return{instagram:'📸 Insta',facebook:'👍 Face',google:'🔍 Google',whatsapp:'💬 WA'}[s?.toLowerCase()]||s||'—';}
+function statusBadge(s){const m={novo:'b-gray',orcamento:'b-yellow',pedido:'b-green',concluido:'b-blue',perdido:'b-red'};const l={novo:'Novo',orcamento:'Orçamento',pedido:'Pedido',concluido:'Concluído',perdido:'Perdido'};return`<span class="badge ${m[s]||'b-gray'}">${l[s]||s}</span>`;}
+function arteBadge(s){const m={aguardando:'b-yellow',recebida:'b-green',aprovada:'b-blue'};const l={aguardando:'Aguardando',recebida:'✅ Recebida',aprovada:'✅ Aprovada'};return`<span class="badge ${m[s]||'b-yellow'}">${l[s]||s}</span>`;}
+function showAlert(id,msg,type='success'){const el=document.getElementById(id);if(!el)return;el.innerHTML=`<div class="alert alert-${type}">${msg}</div>`;setTimeout(()=>{if(el)el.innerHTML='';},4000);}
+function val(id){return document.getElementById(id)?.value||'';}
+function setVal(id,v){const el=document.getElementById(id);if(el)el.value=v||'';}
+
+// ── SETUP ────────────────────────────────────────────────────────────────────
+async function setupConnect(){
+  SB_URL=document.getElementById('setup-url').value.trim().replace(/\/$/,'');
+  SB_KEY=document.getElementById('setup-key').value.trim();
+  if(!SB_URL||!SB_KEY){showSetupErr('Preencha os dois campos');return;}
+  try{
+    await sb('bot_config','limit=1');
+    localStorage.setItem('liz_sb_url',SB_URL);
+    localStorage.setItem('liz_sb_key',SB_KEY);
+    document.getElementById('setup-page').style.display='none';
+    init();
+  }catch(e){showSetupErr('Erro: '+e.message);}
+}
+function showSetupErr(msg){const el=document.getElementById('setup-err');el.textContent=msg;el.style.display='block';}
+
+// ── NAV ───────────────────────────────────────────────────────────────────────
+function nav(el){
+  const page=el.getAttribute('data-page');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  el.classList.add('active');
+  const fns={dashboard:loadDashboard,identidade:loadIdentidade,produtos:loadProdutos,exemplos:loadExemplos,config:loadConfigPage,leads:loadLeads,pedidos:loadPedidos};
+  if(fns[page]) fns[page]();
+}
+
+async function init(){
+  document.querySelector('.main').style.display='block';
+  document.getElementById('setup-page').style.display='none';
+  try{const c=await sb('bot_config','limit=1&select=company_name');if(c[0])document.getElementById('sidebar-company').textContent=c[0].company_name;}catch(e){}
+  loadDashboard();
+}
+
+// ── DASHBOARD ────────────────────────────────────────────────────────────────
+async function loadDashboard(){
+  try{
+    const[c,o]=await Promise.all([sb('customers','order=created_at.desc&limit=50&select=*'),sb('orders','select=*')]);
+    document.getElementById('d-total').textContent=c.length;
+    document.getElementById('d-orc').textContent=c.filter(x=>x.status==='orcamento').length;
+    document.getElementById('d-arte').textContent=o.filter(x=>x.arte_status==='recebida').length;
+    document.getElementById('d-ped').textContent=o.filter(x=>['confirmado','producao'].includes(x.status)).length;
+    document.getElementById('dash-customers').innerHTML=c.slice(0,8).map(x=>`<tr><td>${x.name||'Sem nome'}</td><td style="font-size:12px;color:#888">${x.phone}</td><td>${orig(x.source)}</td><td>${statusBadge(x.status)}</td><td style="font-size:12px;color:#888">${fmtDate(x.created_at)}</td></tr>`).join('');
+  }catch(e){console.error(e);}
+}
+
+// ── IDENTIDADE ───────────────────────────────────────────────────────────────
+async function loadIdentidade(){
+  try{
+    const d=await sb('bot_config','limit=1&select=*');
+    if(!d[0])return;
+    const c=d[0];
+    setVal('i-name',c.bot_name);setVal('i-company',c.company_name);setVal('i-role',c.bot_role);
+    setVal('i-tone',c.bot_tone);setVal('i-opening',c.opening_message);setVal('i-rules',c.rules);
+  }catch(e){showAlert('alert-identidade','Erro: '+e.message,'err');}
+}
+async function saveIdentidade(){
+  try{
+    const d={bot_name:val('i-name'),company_name:val('i-company'),bot_role:val('i-role'),bot_tone:val('i-tone'),opening_message:val('i-opening'),rules:val('i-rules'),updated_at:new Date().toISOString()};
+    const ex=await sb('bot_config','limit=1&select=id');
+    if(ex[0]) await sbPatch('bot_config','id=eq.'+ex[0].id,d);
+    else await sbPost('bot_config',d);
+    document.getElementById('sidebar-company').textContent=d.company_name;
+    showAlert('alert-identidade','✅ Identidade salva! Mudanças ativas em até 1 minuto.');
+  }catch(e){showAlert('alert-identidade','Erro: '+e.message,'err');}
+}
+
+// ── PRODUTOS ─────────────────────────────────────────────────────────────────
+async function loadProdutos(){
+  try{
+    const data=await sb('products','order=sort_order&select=*');
+    document.getElementById('produtos-list').innerHTML=data.length===0
+      ?'<p style="color:#aaa;font-size:13px;margin-bottom:1rem">Nenhum produto cadastrado ainda.</p>'
+      :data.map(p=>`
+        <div class="prod-card">
+          <div class="prod-card-header">
+            <div>
+              <strong>${p.name}</strong>
+              ${p.sku?`<span style="font-size:11px;color:#aaa;margin-left:8px">${p.sku}</span>`:''}
+              <span class="badge ${p.active?'b-green':'b-gray'}" style="margin-left:8px">${p.active?'Ativo':'Inativo'}</span>
+              ${p.category?`<span class="badge b-blue" style="margin-left:4px">${p.category}</span>`:''}
+            </div>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="openProductForm(${JSON.stringify(p).replace(/"/g,'&quot;')})">✏️ Editar</button>
+              <button class="btn btn-sm btn-danger" onclick="delProduct(${p.id})">🗑️</button>
+            </div>
+          </div>
+          <div class="prod-card-body">
+            <div class="prod-stat"><strong>Preço:</strong> R$ ${p.price_per_m2||0}/${p.price_unit||'unidade'}</div>
+            <div class="prod-stat"><strong>Mínimo:</strong> ${p.min_quantity||1} ${p.price_unit||'unidade'}(s)</div>
+            <div class="prod-stat"><strong>Prazo:</strong> ${p.production_days||'—'}</div>
+            <div class="prod-stat"><strong>Estoque:</strong> ${p.stock_info||'—'}</div>
+          </div>
+          ${p.description?`<div style="padding:0 16px 12px;font-size:12px;color:#888">${p.description}</div>`:''}
+        </div>`).join('');
+  }catch(e){showAlert('alert-produtos','Erro ao carregar produtos: '+e.message,'err');}
+}
+
+function openProductForm(p){
+  editProdId = p ? p.id : null;
+  document.getElementById('prod-modal-title').textContent = p ? 'Editar produto' : 'Cadastrar produto';
+  setVal('p-name',  p?.name);
+  setVal('p-sku',   p?.sku);
+  setVal('p-cat',   p?.category);
+  setVal('p-brand', p?.brand);
+  document.getElementById('p-active').value = p ? String(p.active!==false) : 'true';
+  setVal('p-desc',  p?.description);
+  setVal('p-tech',  p?.technical_info);
+  setVal('p-lim',   p?.limitations);
+  setVal('p-faq',   p?.faq);
+  document.getElementById('p-price').value = p?.price_per_m2||'';
+  document.getElementById('p-unit').value  = p?.price_unit||'unidade';
+  document.getElementById('p-minqty').value= p?.min_quantity||1;
+  setVal('p-var',   p?.variations);
+  setVal('p-stock', p?.stock_info);
+  setVal('p-days',  p?.production_days);
+  setVal('p-ship',  p?.shipping_info);
+  setVal('p-srules',p?.sales_rules);
+  setVal('p-keys',  p?.keywords);
+  document.getElementById('prod-modal-bg').style.display='flex';
+}
+
+function closeProductModal(){document.getElementById('prod-modal-bg').style.display='none';}
+
+async function saveProduct(){
+  const name = val('p-name');
+  if(!name){alert('Nome do produto é obrigatório');return;}
+  const data={
+    name, sku:val('p-sku'), category:val('p-cat'), brand:val('p-brand'),
+    active: document.getElementById('p-active').value==='true',
+    description:val('p-desc'), technical_info:val('p-tech'),
+    limitations:val('p-lim'), faq:val('p-faq'),
+    price_per_m2: parseFloat(document.getElementById('p-price').value)||0,
+    price_unit: document.getElementById('p-unit').value,
+    price_label: 'Preço por '+document.getElementById('p-unit').value,
+    min_quantity: parseInt(document.getElementById('p-minqty').value)||1,
+    variations:val('p-var'), stock_info:val('p-stock'),
+    production_days:val('p-days'), shipping_info:val('p-ship'),
+    sales_rules:val('p-srules'), keywords:val('p-keys'),
+    sort_order: editProdId ? undefined : 99,
+  };
+  if(!editProdId) delete data.sort_order;
+  try{
+    if(editProdId) await sbPatch('products','id=eq.'+editProdId, data);
+    else await sbPost('products', data);
+    closeProductModal();
+    loadProdutos();
+    showAlert('alert-produtos','✅ Produto salvo! O bot já vai usar as novas informações.');
+  }catch(e){showAlert('alert-produtos','Erro ao salvar: '+e.message,'err');}
+}
+
+async function delProduct(id){
+  if(!confirm('Remover este produto? O bot não vai mais vendê-lo.'))return;
+  try{await sbDel('products','id=eq.'+id);loadProdutos();}
+  catch(e){showAlert('alert-produtos','Erro: '+e.message,'err');}
+}
+
+// ── EXEMPLOS ─────────────────────────────────────────────────────────────────
+async function loadExemplos(){
+  try{
+    const data=await sb('conversation_examples','order=created_at&select=*');
+    document.getElementById('exemplos-list').innerHTML=data.length===0
+      ?'<p style="color:#aaa;font-size:13px;margin-bottom:1rem">Nenhum exemplo cadastrado ainda.</p>'
+      :data.map(ex=>`
+        <div class="ex-card">
+          <div class="ex-header">
+            <strong style="font-size:13px">${ex.title||'Sem título'}</strong>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-sm" onclick="openExemploForm(${JSON.stringify(ex).replace(/"/g,'&quot;')})">✏️</button>
+              <button class="btn btn-sm btn-danger" onclick="delExemplo(${ex.id})">🗑️</button>
+            </div>
+          </div>
+          <div style="font-size:12px;color:#666">${ex.context||''}</div>
+          <div style="font-size:11px;color:#aaa;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${(ex.conversation||'').slice(0,120)}...</div>
+        </div>`).join('');
+  }catch(e){showAlert('alert-exemplos','Erro: '+e.message,'err');}
+}
+
+function openExemploForm(ex){
+  editExId = ex ? ex.id : null;
+  document.getElementById('ex-modal-title').textContent = ex ? 'Editar conversa' : 'Nova conversa de exemplo';
+  setVal('ex-title', ex?.title);
+  setVal('ex-ctx',   ex?.context);
+  setVal('ex-conv',  ex?.conversation);
+  document.getElementById('ex-modal-bg').style.display='flex';
+}
+function closeExModal(){document.getElementById('ex-modal-bg').style.display='none';}
+async function saveExemplo(){
+  const d={title:val('ex-title'),context:val('ex-ctx'),conversation:val('ex-conv'),active:true};
+  if(!d.conversation){alert('Cole a conversa antes de salvar');return;}
+  try{
+    if(editExId) await sbPatch('conversation_examples','id=eq.'+editExId,d);
+    else await sbPost('conversation_examples',d);
+    closeExModal();loadExemplos();
+    showAlert('alert-exemplos','✅ Conversa salva! A Liz já aprende com ela.');
+  }catch(e){showAlert('alert-exemplos','Erro: '+e.message,'err');}
+}
+async function delExemplo(id){
+  if(!confirm('Remover esta conversa?'))return;
+  await sbDel('conversation_examples','id=eq.'+id);loadExemplos();
+}
+
+// ── FOLLOW-UP ────────────────────────────────────────────────────────────────
+async function saveFollowupExtra(){
+  try{
+    const ex=await sb('bot_config','limit=1&select=id');
+    if(ex[0]) await sbPatch('bot_config','id=eq.'+ex[0].id,{rules:val('fu-extra')});
+    showAlert('alert-followup','✅ Instrução salva!');
+  }catch(e){showAlert('alert-followup','Erro: '+e.message,'err');}
+}
+
+// ── CONFIG ───────────────────────────────────────────────────────────────────
+async function loadConfigPage(){
+  try{
+    const d=await sb('bot_config','limit=1&select=pix_key,payment_terms,group_notify_number,followup_enabled');
+    if(!d[0])return;
+    setVal('c-pix',d[0].pix_key);setVal('c-payment',d[0].payment_terms);setVal('c-group',d[0].group_notify_number);
+    document.getElementById('c-followup').checked=d[0].followup_enabled!==false;
+  }catch(e){}
+}
+async function saveConfigPage(){
+  try{
+    const d={pix_key:val('c-pix'),payment_terms:val('c-payment'),group_notify_number:val('c-group'),followup_enabled:document.getElementById('c-followup').checked,updated_at:new Date().toISOString()};
+    const ex=await sb('bot_config','limit=1&select=id');
+    if(ex[0]) await sbPatch('bot_config','id=eq.'+ex[0].id,d);
+    showAlert('alert-config','✅ Configurações salvas!');
+  }catch(e){showAlert('alert-config','Erro: '+e.message,'err');}
+}
+
+// ── LEADS ────────────────────────────────────────────────────────────────────
+async function loadLeads(){
+  try{
+    const d=await sb('customers','order=created_at.desc&limit=100&select=*');
+    document.getElementById('leads-list').innerHTML=d.map(c=>`
+      <tr><td>${c.name||'Sem nome'}</td><td style="font-size:12px">${c.phone}</td>
+      <td>${orig(c.source)}</td><td>${statusBadge(c.status)}</td>
+      <td style="font-size:12px;color:#888;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.notes||'—'}</td>
+      <td style="font-size:12px;color:#888">${fmtDate(c.created_at)}</td>
+      <td><button class="btn btn-sm" onclick="openCustModal('${c.phone}','${c.status}',\`${(c.notes||'').replace(/`/g,"'")}\`)">✏️</button></td></tr>`).join('');
+  }catch(e){console.error(e);}
+}
+function openCustModal(phone,status,notes){editCustPhone=phone;setVal('m-status',status);setVal('m-notes',notes);document.getElementById('cust-modal-title').textContent='Editar: '+phone;document.getElementById('cust-modal-bg').style.display='flex';}
+function closeCustModal(){document.getElementById('cust-modal-bg').style.display='none';}
+async function saveCustomer(){
+  try{await sbPatch('customers','phone=eq.'+encodeURIComponent(editCustPhone),{status:val('m-status'),notes:val('m-notes'),updated_at:new Date().toISOString()});closeCustModal();loadLeads();}
+  catch(e){alert('Erro: '+e.message);}
+}
+
+// ── PEDIDOS ──────────────────────────────────────────────────────────────────
+async function loadPedidos(){
+  try{
+    const d=await sb('orders','order=created_at.desc&limit=100&select=*');
+    document.getElementById('orders-list').innerHTML=d.map(o=>`
+      <tr><td style="font-size:12px">${o.phone}</td><td>${o.produto||'—'}</td>
+      <td>${o.quantidade||'—'}</td><td>${o.tamanho||'—'}</td>
+      <td>${arteBadge(o.arte_status)}</td><td>${fmtVal(o.valor_estimado)}</td>
+      <td>${statusBadge(o.status)}</td>
+      <td><button class="btn btn-sm" onclick="openOrdModal(${o.id},'${o.status}','${o.arte_status}',\`${(o.obs||'').replace(/`/g,"'")}\`)">✏️</button></td></tr>`).join('');
+  }catch(e){console.error(e);}
+}
+function openOrdModal(id,status,arte,obs){editOrdId=id;setVal('om-status',status);setVal('om-arte',arte);setVal('om-obs',obs);document.getElementById('ord-modal-bg').style.display='flex';}
+function closeOrdModal(){document.getElementById('ord-modal-bg').style.display='none';}
+async function saveOrder(){
+  try{await sbPatch('orders','id=eq.'+editOrdId,{status:val('om-status'),arte_status:val('om-arte'),obs:val('om-obs'),updated_at:new Date().toISOString()});closeOrdModal();loadPedidos();}
+  catch(e){alert('Erro: '+e.message);}
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.modal-bg').forEach(m=>{
+  m.addEventListener('click',e=>{if(e.target===m)m.style.display='none';});
+});
+
+if(SB_URL&&SB_KEY){
+  document.getElementById('setup-url').value=SB_URL;
+  document.getElementById('setup-key').value=SB_KEY;
+  init();
+}else{
+  document.querySelector('.main').style.display='none';
+  document.getElementById('setup-page').style.display='block';
+}
+</script>
+</body>
+</html>
