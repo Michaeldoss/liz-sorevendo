@@ -1,142 +1,187 @@
 """
-crm_service.py — CRM SQLite para leads da So Revendo
+crm_service.py — CRM da Liz usando Supabase.
 Localização: app/services/crm_service.py
 """
 
-import sqlite3
 import logging
 import os
-from pathlib import Path
+from supabase import create_client, Client
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(os.getenv("CRM_DB_PATH", "/tmp/sorevendo_crm.db"))
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+
+# Preço base por m²
+PRECO_POR_M2 = 1300.00
+ACRESCIMO_ESTRELA = 1.50  # por peça
 
 
-class CRMService:
-    def __init__(self, db_path: Path = DB_PATH):
-        self.db_path = db_path
-        self._init_db()
+def _get_client() -> Client:
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
-    def _connect(self):
-        conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        return conn
 
-    def _init_db(self):
-        with self._connect() as conn:
-            conn.executescript("""
-                CREATE TABLE IF NOT EXISTS customers (
-                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                    phone       TEXT UNIQUE NOT NULL,
-                    name        TEXT DEFAULT '',
-                    source      TEXT DEFAULT '',
-                    status      TEXT DEFAULT 'novo',
-                    notes       TEXT DEFAULT '',
-                    created_at  TEXT DEFAULT (datetime('now', 'localtime')),
-                    updated_at  TEXT DEFAULT (datetime('now', 'localtime'))
-                );
+# ─── CLIENTES ────────────────────────────────────────────────────────────────
 
-                CREATE TABLE IF NOT EXISTS messages (
-                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                    phone       TEXT NOT NULL,
-                    role        TEXT NOT NULL,
-                    content     TEXT NOT NULL,
-                    created_at  TEXT DEFAULT (datetime('now', 'localtime'))
-                );
+def get_or_create_customer(phone: str, name: str = "", source: str = "") -> dict:
+    """Busca cliente ou cria novo. Retorna dict com dados."""
+    try:
+        sb = _get_client()
+        res = sb.table("customers").select("*").eq("phone", phone).execute()
 
-                CREATE TABLE IF NOT EXISTS orders (
-                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                    phone           TEXT NOT NULL,
-                    produto         TEXT NOT NULL,
-                    quantidade      TEXT DEFAULT '',
-                    dimensoes       TEXT DEFAULT '',
-                    valor_total     REAL DEFAULT 0,
-                    valor_entrada   REAL DEFAULT 0,
-                    status          TEXT DEFAULT 'orcamento',
-                    arte_status     TEXT DEFAULT 'aguardando',
-                    obs             TEXT DEFAULT '',
-                    created_at      TEXT DEFAULT (datetime('now', 'localtime')),
-                    updated_at      TEXT DEFAULT (datetime('now', 'localtime'))
-                );
-            """)
-        logger.info(f"[CRM] Banco iniciado em {self.db_path}")
+        if res.data:
+            customer = res.data[0]
+            # Atualiza nome se chegou novo
+            if name and not customer.get("name"):
+                sb.table("customers").update({"name": name, "updated_at": "NOW()"}).eq("phone", phone).execute()
+                customer["name"] = name
+            return customer
 
-    def get_or_create_customer(self, phone: str, name: str = "", source: str = "") -> dict:
-        with self._connect() as conn:
-            row = conn.execute("SELECT * FROM customers WHERE phone = ?", (phone,)).fetchone()
-            if row:
-                if name and not row["name"]:
-                    conn.execute(
-                        "UPDATE customers SET name=?, updated_at=datetime('now','localtime') WHERE phone=?",
-                        (name, phone),
-                    )
-                return dict(row)
-            conn.execute(
-                "INSERT INTO customers (phone, name, source) VALUES (?, ?, ?)",
-                (phone, name, source),
-            )
-            row = conn.execute("SELECT * FROM customers WHERE phone = ?", (phone,)).fetchone()
-            logger.info(f"[CRM] Novo cliente: {phone} ({name})")
-            return dict(row)
+        # Cria novo
+        novo = {"phone": phone, "name": name, "source": source, "status": "novo"}
+        res = sb.table("customers").insert(novo).execute()
+        logger.info(f"[CRM] Novo cliente: {phone} ({name})")
+        return res.data[0] if res.data else novo
 
-    def update_customer(self, phone: str, **kwargs):
-        allowed = {"name", "source", "status", "notes"}
-        fields = {k: v for k, v in kwargs.items() if k in allowed}
-        if not fields:
-            return
-        set_clause = ", ".join(f"{k}=?" for k in fields)
-        values = list(fields.values()) + [phone]
-        with self._connect() as conn:
-            conn.execute(
-                f"UPDATE customers SET {set_clause}, updated_at=datetime('now','localtime') WHERE phone=?",
-                values,
-            )
+    except Exception as e:
+        logger.error(f"[CRM] Erro ao buscar/criar cliente {phone}: {e}")
+        return {"phone": phone, "name": name, "source": source, "status": "novo"}
 
-    def save_message(self, phone: str, role: str, content: str):
-        with self._connect() as conn:
-            conn.execute(
-                "INSERT INTO messages (phone, role, content) VALUES (?, ?, ?)",
-                (phone, role, content),
-            )
 
-    def get_conversation_history(self, phone: str, limit: int = 30) -> list[dict]:
-        with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT role, content FROM messages WHERE phone=? ORDER BY id DESC LIMIT ?",
-                (phone, limit),
-            ).fetchall()
-        return [dict(r) for r in reversed(rows)]
+def update_customer(phone: str, **kwargs):
+    """Atualiza campos do cliente."""
+    allowed = {"name", "source", "status", "notes"}
+    fields = {k: v for k, v in kwargs.items() if k in allowed}
+    if not fields:
+        return
+    try:
+        _get_client().table("customers").update(fields).eq("phone", phone).execute()
+    except Exception as e:
+        logger.error(f"[CRM] Erro ao atualizar cliente {phone}: {e}")
 
-    def create_order(self, phone: str, produto: str, **kwargs) -> int:
-        valor_total = kwargs.get("valor_total", 0)
-        campos = {
+
+def count_messages_today(phone: str) -> int:
+    """Conta mensagens do cliente hoje — para enriquecer notificação."""
+    try:
+        res = _get_client().table("messages") \
+            .select("id", count="exact") \
+            .eq("phone", phone) \
+            .gte("created_at", "NOW() - INTERVAL '1 day'") \
+            .execute()
+        return res.count or 0
+    except Exception as e:
+        logger.error(f"[CRM] Erro ao contar mensagens: {e}")
+        return 0
+
+
+# ─── MENSAGENS ───────────────────────────────────────────────────────────────
+
+def save_message(phone: str, role: str, content: str):
+    try:
+        _get_client().table("messages").insert({
+            "phone": phone, "role": role, "content": content
+        }).execute()
+    except Exception as e:
+        logger.error(f"[CRM] Erro ao salvar mensagem: {e}")
+
+
+def get_conversation_history(phone: str, limit: int = 30) -> list[dict]:
+    try:
+        res = _get_client().table("messages") \
+            .select("role, content") \
+            .eq("phone", phone) \
+            .order("created_at", desc=True) \
+            .limit(limit) \
+            .execute()
+        return list(reversed(res.data)) if res.data else []
+    except Exception as e:
+        logger.error(f"[CRM] Erro ao buscar histórico: {e}")
+        return []
+
+
+# ─── PEDIDOS ─────────────────────────────────────────────────────────────────
+
+def calcular_valor(tamanho: str, quantidade: int, tem_estrelas: bool = False) -> float:
+    """
+    Calcula valor estimado do patch.
+    tamanho: string como '8x6', '10cm', '8x6cm'
+    Retorna valor total ou 0 se não conseguir calcular.
+    """
+    try:
+        # Tenta extrair dimensões do tamanho
+        import re
+        nums = re.findall(r'\d+\.?\d*', tamanho.replace(',', '.'))
+        if len(nums) >= 2:
+            largura, altura = float(nums[0]), float(nums[1])
+        elif len(nums) == 1:
+            # Assume quadrado
+            largura = altura = float(nums[0])
+        else:
+            return 0
+
+        area_cm2 = largura * altura
+        area_m2 = area_cm2 / 10000
+        valor_base = area_m2 * PRECO_POR_M2 * quantidade
+
+        if tem_estrelas:
+            valor_base += ACRESCIMO_ESTRELA * quantidade
+
+        return round(valor_base, 2)
+    except Exception:
+        return 0
+
+
+def create_order(phone: str, **kwargs) -> dict:
+    """Cria orçamento/pedido. Retorna o registro criado."""
+    try:
+        quantidade_str = kwargs.get("quantidade", "")
+        tamanho = kwargs.get("tamanho", "")
+        tem_estrelas = kwargs.get("tem_estrelas", False)
+
+        # Tenta extrair número de quantidade
+        import re
+        qtd_nums = re.findall(r'\d+', quantidade_str)
+        qtd_int = int(qtd_nums[0]) if qtd_nums else 0
+
+        valor = calcular_valor(tamanho, qtd_int, tem_estrelas) if qtd_int and tamanho else 0
+
+        record = {
             "phone": phone,
-            "produto": produto,
-            "quantidade": kwargs.get("quantidade", ""),
-            "dimensoes": kwargs.get("dimensoes", ""),
-            "valor_total": valor_total,
-            "valor_entrada": round(valor_total * 0.5, 2),
+            "produto": "Patch 3D",
+            "quantidade": quantidade_str,
+            "tamanho": tamanho,
+            "tem_estrelas": tem_estrelas,
+            "valor_estimado": valor,
+            "valor_entrada": round(valor * 0.5, 2),
+            "status": kwargs.get("status", "orcamento"),
+            "arte_status": kwargs.get("arte_status", "aguardando"),
             "obs": kwargs.get("obs", ""),
         }
-        with self._connect() as conn:
-            cur = conn.execute(
-                """INSERT INTO orders (phone, produto, quantidade, dimensoes, valor_total, valor_entrada, obs)
-                   VALUES (:phone, :produto, :quantidade, :dimensoes, :valor_total, :valor_entrada, :obs)""",
-                campos,
-            )
-            return cur.lastrowid
 
-    def update_order_status(self, order_id: int, status: str):
-        with self._connect() as conn:
-            conn.execute(
-                "UPDATE orders SET status=?, updated_at=datetime('now','localtime') WHERE id=?",
-                (status, order_id),
-            )
+        res = _get_client().table("orders").insert(record).execute()
+        logger.info(f"[CRM] Pedido criado para {phone}: R${valor}")
+        return res.data[0] if res.data else record
 
-    def get_orders(self, phone: str) -> list[dict]:
-        with self._connect() as conn:
-            rows = conn.execute(
-                "SELECT * FROM orders WHERE phone=? ORDER BY id DESC", (phone,)
-            ).fetchall()
-        return [dict(r) for r in rows]
+    except Exception as e:
+        logger.error(f"[CRM] Erro ao criar pedido: {e}")
+        return {}
+
+
+def get_orders(phone: str) -> list[dict]:
+    try:
+        res = _get_client().table("orders") \
+            .select("*") \
+            .eq("phone", phone) \
+            .order("created_at", desc=True) \
+            .execute()
+        return res.data or []
+    except Exception as e:
+        logger.error(f"[CRM] Erro ao buscar pedidos: {e}")
+        return []
+
+
+def update_order_status(order_id: int, status: str):
+    try:
+        _get_client().table("orders").update({"status": status}).eq("id", order_id).execute()
+    except Exception as e:
+        logger.error(f"[CRM] Erro ao atualizar pedido #{order_id}: {e}")

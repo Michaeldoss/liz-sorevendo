@@ -1,12 +1,11 @@
 """
-group_notify.py — Notificação no grupo WhatsApp interno da So Revendo.
+group_notify.py — Notificação enriquecida no grupo WhatsApp interno da So Revendo.
 Localização: app/services/group_notify.py
 """
 
 import logging
 import os
 from twilio.rest import Client as TwilioClient
-from app.core.media_catalog import list_client_files
 
 logger = logging.getLogger(__name__)
 
@@ -19,6 +18,7 @@ HOT_LEAD_TRIGGERS = [
     "orçamento", "orcamento", "pedido", "confirmar", "confirmado",
     "fechar", "quantidade", "quantas peças", "me passa", "vou montar",
     "arte recebida", "montar o orçamento", "montar certinho",
+    "qual o valor", "quanto fica", "quero fazer", "quero encomendar",
 ]
 
 
@@ -33,7 +33,11 @@ def notify_group(
     status: str = "orcamento",
     quantidade: str = "",
     tamanho: str = "",
+    tem_estrelas: bool = False,
     arte_status: str = "aguardando",
+    valor_estimado: float = 0,
+    mensagens_hoje: int = 0,
+    origem: str = "",
     obs: str = "",
 ):
     if not GROUP_NOTIFY_NUMBER:
@@ -41,34 +45,61 @@ def notify_group(
         return
 
     status_label = {
-        "orcamento": "🟡 ORÇAMENTO",
+        "orcamento":        "🟡 ORÇAMENTO",
         "pedido_confirmado": "🟢 PEDIDO CONFIRMADO",
-        "arte_recebida": "🎨 ARTE RECEBIDA",
+        "arte_recebida":    "🎨 ARTE RECEBIDA",
     }.get(status, f"🔵 {status.upper()}")
 
+    # Linha de valor
+    if valor_estimado > 0:
+        valor_linha = f"R$ {valor_estimado:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        entrada_linha = f"R$ {valor_estimado/2:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        valor_str = f"💰 Valor estimado: *{valor_linha}* (entrada: {entrada_linha})"
+    else:
+        valor_str = "💰 Valor: aguardando tamanho e quantidade"
+
+    # Monta mensagem
     linhas = [
-        "*[LIZ — So Revendo]*",
-        "",
-        status_label,
-        f"Cliente: {client_name or 'Não informado'}",
-        f"Tel: {client_phone}",
-        f"Produto: Patch 3D",
+        f"*[LIZ — So Revendo]*",
+        f"",
+        f"{status_label}",
+        f"━━━━━━━━━━━━━━━━━━━",
+        f"👤 *{client_name or 'Não informado'}*",
+        f"📱 {client_phone}",
     ]
 
-    if quantidade: linhas.append(f"Qtd: {quantidade}")
-    if tamanho:    linhas.append(f"Tamanho: {tamanho}")
+    if origem:
+        origens = {
+            "instagram": "📸 Instagram",
+            "facebook": "👍 Facebook",
+            "google": "🔍 Google",
+            "whatsapp": "💬 WhatsApp",
+        }
+        linhas.append(f"📣 Origem: {origens.get(origem.lower(), origem)}")
 
-    linhas.append(f"Arte: {'✅ Recebida' if arte_status == 'recebida' else '⏳ Aguardando'}")
+    linhas.append(f"━━━━━━━━━━━━━━━━━━━")
+    linhas.append(f"📦 Produto: Patch 3D")
 
-    # Lista arquivos recebidos do cliente
-    files = list_client_files(client_phone)
-    if files:
-        linhas.append("")
-        linhas.append("*Arquivos salvos:*")
-        for f in files[-5:]:  # últimos 5
-            linhas.append(f"• {f['filename']} ({f['size_kb']} KB)")
+    if quantidade:
+        linhas.append(f"🔢 Quantidade: {quantidade}")
+    if tamanho:
+        linhas.append(f"📐 Tamanho: {tamanho}")
+    if tem_estrelas:
+        linhas.append(f"⭐ Arte com estrelas: +R$1,50/peça")
 
-    if obs: linhas.append(f"Obs: {obs}")
+    linhas.append(f"")
+    linhas.append(valor_str)
+    linhas.append(f"")
+    linhas.append(f"🎨 Arte: {'✅ Recebida' if arte_status == 'recebida' else '⏳ Aguardando'}")
+
+    if mensagens_hoje > 0:
+        linhas.append(f"💬 Mensagens hoje: {mensagens_hoje}")
+
+    if obs:
+        linhas.append(f"📝 Obs: {obs}")
+
+    linhas.append(f"━━━━━━━━━━━━━━━━━━━")
+    linhas.append(f"_Gerado pela Liz — So Revendo_")
 
     try:
         TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN).messages.create(
@@ -78,4 +109,4 @@ def notify_group(
         )
         logger.info(f"[GROUP] Notificação enviada: {status} — {client_phone}")
     except Exception as e:
-        logger.error(f"[GROUP] Erro: {e}")
+        logger.error(f"[GROUP] Erro ao notificar: {e}")
