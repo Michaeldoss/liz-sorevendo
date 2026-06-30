@@ -9,6 +9,7 @@ import os
 import time
 from supabase import create_client
 from app.services.shipping_service import build_packaging_prompt_section
+from app.services.usage_tracker import registrar_uso_anthropic
 
 logger = logging.getLogger(__name__)
 client = anthropic.Anthropic()
@@ -188,6 +189,9 @@ def get_liz_response(
 
     try:
         resp = client.messages.create(model=MODEL, max_tokens=MAX_TOKENS, system=system_prompt, messages=messages)
+
+        registrar_uso_anthropic(MODEL, resp.usage, agente="liz")
+
         reply = resp.content[0].text.strip()
         logger.info(f"[BOT] {reply[:80]}...")
         return reply
