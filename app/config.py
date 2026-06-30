@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     # Anthropic
     ANTHROPIC_API_KEY: str = "stub"
 
+    # Banco de dados (necessario para app/models/database.py)
+    DATABASE_URL: str = "sqlite:///./test.db"
+
     # Ambiente
     ENVIRONMENT: str = "development"
 
