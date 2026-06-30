@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.webhooks import router as whatsapp_router
+from app.api.usage_router import router as usage_router
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -33,6 +34,7 @@ app.add_middleware(
 )
 
 app.include_router(whatsapp_router)
+app.include_router(usage_router)
 
 
 @app.on_event("startup")
