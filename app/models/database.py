@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, MetaData
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, MetaData, Float
 from sqlalchemy.orm import declarative_base, sessionmaker
 from app.config import get_settings
 import datetime
@@ -68,6 +68,26 @@ class LeadState(Base):
     # ── Timestamps ────────────────────────────────────────────────────────
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+
+class UsageLog(Base):
+    """Registra uso de qualquer servico pago (Anthropic, Twilio) em tempo real."""
+    __tablename__ = "usage_logs"
+
+    id      = Column(Integer, primary_key=True, index=True)
+    agente  = Column(String, default="liz", index=True)
+    servico = Column(String, default="anthropic", index=True)  # "anthropic", "twilio"
+    model   = Column(String)
+
+    input_tokens           = Column(Integer, default=0)
+    output_tokens          = Column(Integer, default=0)
+    cache_creation_tokens  = Column(Integer, default=0)
+    cache_read_tokens      = Column(Integer, default=0)
+    quantidade             = Column(Float, default=0.0)
+
+    custo_usd = Column(Float, default=0.0)
+
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
 
 
 # Cria tabelas (inclui colunas novas via ALTER automático no SQLite)
